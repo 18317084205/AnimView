@@ -1,0 +1,2 @@
+include ':app', ':anim_lib'
+rootProject.name='AnimView'
