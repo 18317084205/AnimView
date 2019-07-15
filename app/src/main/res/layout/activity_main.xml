@@ -16,6 +16,8 @@
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+<!--    app:animResource="@array/refresh"-->
+
     <com.liang.anim.AnimView
         android:id="@+id/anim"
         android:layout_width="50dp"

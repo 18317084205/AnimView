@@ -8,7 +8,6 @@ import android.graphics.*;
 import android.support.annotation.ArrayRes;
 import android.text.TextUtils;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
@@ -265,7 +264,6 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
             isRunning = true;
             postAnimationStart();
             do {
-                Log.e("runAssets", "index: "+index);
                 drawAssets(assetsFolder + "/" + strings[index]);
                 index++;
                 if (isLoop && index == strings.length) {
@@ -338,7 +336,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
             @Override
             public void run() {
                 if (animationListener != null) {
-                    animationListener.onAnimationStart();
+                    animationListener.onAnimStart();
                 }
             }
         });
@@ -349,7 +347,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
             @Override
             public void run() {
                 if (animationListener != null) {
-                    animationListener.onAnimationEnd();
+                    animationListener.onAnimEnd();
                 }
             }
         });
@@ -360,7 +358,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
             @Override
             public void run() {
                 if (animationListener != null) {
-                    animationListener.onAnimationRepeat();
+                    animationListener.onAnimRepeat();
                 }
             }
         });
@@ -368,10 +366,10 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
 
 
     public interface AnimationListener {
-        void onAnimationStart();
+        void onAnimStart();
 
-        void onAnimationEnd();
+        void onAnimEnd();
 
-        void onAnimationRepeat();
+        void onAnimRepeat();
     }
 }
