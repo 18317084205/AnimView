@@ -12,6 +12,8 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -19,8 +21,9 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private ExecutorService executors = Executors.newSingleThreadExecutor();
     private String assetsFolder = "";
-    private String[] strings;
-    private TypedArray typedArray;// 用于播放动画的图片资源id数组
+    private ArrayList<String> strings = new ArrayList<>();
+    private ArrayList<Integer> resIds = new ArrayList<>();
+
     private boolean isStart = false;
     private boolean isPause = false;
     private boolean isAutoStart;
@@ -73,10 +76,11 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
-        if (typedArray != null) {
-            typedArray.recycle();
-        }
+        stop();
+        isLoop = false;
         executors.shutdown();
+        strings.clear();
+        resIds.clear();
     }
 
 
@@ -96,6 +100,42 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
         isLoop = loop;
     }
 
+    public String getAssetsFolder() {
+        return assetsFolder;
+    }
+
+    public boolean isStart() {
+        return isStart;
+    }
+
+    public boolean isPause() {
+        return isPause;
+    }
+
+    public boolean isAutoStart() {
+        return isAutoStart;
+    }
+
+    public boolean isRunning() {
+        return isRunning;
+    }
+
+    public boolean isInitialized() {
+        return isInitialized;
+    }
+
+    public ArrayList<String> getStrings() {
+        return strings;
+    }
+
+    public ArrayList<Integer> getResIds() {
+        return resIds;
+    }
+
+    public int getIndex() {
+        return index;
+    }
+
     public AnimationListener getAnimationListener() {
         return animationListener;
     }
@@ -105,32 +145,54 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     @SuppressLint("Recycle")
-    public void setAnimResource(@ArrayRes int arrayRes) {
+    public void setAnimResource(@ArrayRes final int arrayRes) {
         if (arrayRes == 0) {
             return;
         }
-        strings = null;
-        typedArray = getResources().obtainTypedArray(arrayRes);
+        strings.clear();
+        index = 0;
+        executors.execute(new Runnable() {
+            @Override
+            public void run() {
+                TypedArray typedArray = getResources().obtainTypedArray(arrayRes);
+                for (int i = 0; i < typedArray.length(); i++) {
+                    resIds.add(typedArray.getResourceId(i, 0));
+                }
+                typedArray.recycle();
+                checkStart();
+            }
+        });
     }
 
-    public void setAnimAssets(String assetsFolder) {
+    public void setAnimAssets(final String assetsFolder) {
         if (TextUtils.isEmpty(assetsFolder)) {
             return;
         }
-        if (typedArray != null) {
-            typedArray.recycle();
-        }
-        typedArray = null;
+        resIds.clear();
         this.assetsFolder = assetsFolder;
-        try {
-            strings = assetsManager.list(assetsFolder);
-        } catch (IOException e) {
-            e.printStackTrace();
+        index = 0;
+        executors.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    strings.addAll(Arrays.asList(assetsManager.list(assetsFolder)));
+                    checkStart();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+    }
+
+
+    private void checkStart() {
+        if (isAutoStart || isStart) {
+            start();
         }
     }
 
     public void start() {
-        isStart = true;
         if (isRunning) {
             return;
         }
@@ -139,8 +201,8 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
             return;
         }
 
+        isStart = true;
         executors.execute(this);
-//        Thread(this).start()
     }
 
     public void stop() {
@@ -153,6 +215,12 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
         isPause = isRunning;
         isStart = false;
         isAutoStart = false;
+    }
+
+    void resume() {
+        if (isAutoStart || isPause || isStart) {
+            start();
+        }
     }
 
     public void reStart() {
@@ -177,10 +245,10 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
             offset = 1f;
         }
 
-        if (typedArray != null && typedArray.length() > 0) {
-            index = Math.round((typedArray.length() - 1) * offset);
-        } else if (strings != null && strings.length > 0) {
-            index = Math.round((strings.length - 1) * offset);
+        if (resIds.size() > 0) {
+            index = Math.round((resIds.size() - 1) * offset);
+        } else if (strings != null && strings.size() > 0) {
+            index = Math.round((strings.size() - 1) * offset);
         }
 
         drawFame(index);
@@ -198,10 +266,9 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         drawFame(index);
 
-        if (isAutoStart || isPause || isStart) {
-            start();
-        }
+        resume();
     }
+
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
@@ -210,11 +277,11 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     @Override
     public void run() {
-        if (typedArray != null) {
+        if (!resIds.isEmpty()) {
             runRes();
         }
 
-        if (strings != null) {
+        if (!strings.isEmpty()) {
             runAssets();
         }
     }
@@ -224,10 +291,10 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
         executors.execute(new Runnable() {
             @Override
             public void run() {
-                if (typedArray != null && typedArray.length() > 0 && index < typedArray.length()) {
-                    drawRes(typedArray.getResourceId(index, 0));
-                } else if (strings != null && strings.length > 0 && index < strings.length) {
-                    drawAssets(assetsFolder + "/" + strings[index]);
+                if (!resIds.isEmpty() && index < resIds.size()) {
+                    drawRes(resIds.get(index));
+                } else if (!strings.isEmpty() && index < strings.size()) {
+                    drawAssets(assetsFolder + "/" + strings.get(index));
                 }
             }
         });
@@ -235,13 +302,13 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
 
 
     private void runRes() {
-        if (typedArray != null && typedArray.length() > 0) {
+        if (!resIds.isEmpty()) {
             isRunning = true;
             postAnimationStart();
             do {
-                drawRes(typedArray.getResourceId(index, 0));
+                drawRes(resIds.get(index));
                 index++;
-                if (isLoop && index == typedArray.length()) {
+                if (isLoop && index == resIds.size()) {
                     index = 0;
                     postAnimationRepeat();
                 }
@@ -250,9 +317,9 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-            } while (isStart && index < typedArray.length());
+            } while (isStart && index < resIds.size());
 
-            refreshIndex(typedArray.length());
+            refreshIndex(resIds.size());
 
             isRunning = false;
             postAnimationEnd();
@@ -260,13 +327,13 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void runAssets() {
-        if (strings != null && strings.length > 0) {
+        if (!strings.isEmpty()) {
             isRunning = true;
             postAnimationStart();
             do {
-                drawAssets(assetsFolder + "/" + strings[index]);
+                drawAssets(assetsFolder + "/" + strings.get(index));
                 index++;
-                if (isLoop && index == strings.length) {
+                if (isLoop && index == strings.size()) {
                     index = 0;
                     postAnimationRepeat();
                 }
@@ -275,9 +342,9 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-            } while (isStart && index < strings.length);
+            } while (isStart && index < strings.size());
 
-            refreshIndex(strings.length);
+            refreshIndex(strings.size());
 
             isRunning = false;
             postAnimationEnd();
@@ -364,6 +431,13 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
         });
     }
 
+    @Override
+    public void setVisibility(int visibility) {
+        super.setVisibility(visibility);
+        if (visibility != VISIBLE) {
+            stop();
+        }
+    }
 
     public interface AnimationListener {
         void onAnimStart();
