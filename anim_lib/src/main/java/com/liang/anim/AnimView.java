@@ -33,11 +33,11 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     private boolean isLoop;
     private Rect srcRect;
     private Rect destRect;
-    private Canvas canvas;
     private Paint paint = new Paint();
     private int index = 0;
 
-    private SurfaceHolder mSurfaceHolder;
+    private boolean isDetached = false;
+
     private AssetManager assetsManager;
 
     private AnimationListener animationListener;
@@ -64,11 +64,11 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void init() {
-        mSurfaceHolder = getHolder();
-        mSurfaceHolder.addCallback(this);
-        mSurfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_HARDWARE);
+        SurfaceHolder surfaceHolder = getHolder();
+        surfaceHolder.addCallback(this);
+        surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_HARDWARE);
         setZOrderOnTop(true);
-        mSurfaceHolder.setFormat(PixelFormat.TRANSLUCENT);
+        surfaceHolder.setFormat(PixelFormat.TRANSLUCENT);
         paint.setAntiAlias(true);
         assetsManager = getContext().getAssets();
     }
@@ -77,6 +77,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         stop();
+        isDetached = true;
         isLoop = false;
         executors.shutdown();
         strings.clear();
@@ -146,7 +147,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     @SuppressLint("Recycle")
     public void setAnimResource(@ArrayRes final int arrayRes) {
-        if (arrayRes == 0) {
+        if (arrayRes == 0 || isDetached) {
             return;
         }
         strings.clear();
@@ -165,7 +166,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     public void setAnimAssets(final String assetsFolder) {
-        if (TextUtils.isEmpty(assetsFolder)) {
+        if (TextUtils.isEmpty(assetsFolder) || isDetached) {
             return;
         }
         resIds.clear();
@@ -193,11 +194,8 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     public void start() {
-        if (isRunning) {
-            return;
-        }
 
-        if (!isInitialized) {
+        if (isDetached || isRunning || !isInitialized) {
             return;
         }
 
@@ -231,7 +229,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     public void setProgress(float progress) {
 
-        if (isRunning) {
+        if (isRunning || isDetached) {
             return;
         }
 
@@ -288,6 +286,11 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
 
 
     public void drawFame(final int index) {
+
+        if (isDetached) {
+            return;
+        }
+
         executors.execute(new Runnable() {
             @Override
             public void run() {
@@ -373,11 +376,12 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawBitmap(Bitmap bitmap) {
-        if (mSurfaceHolder == null || bitmap == null) {
-            return;
-        }
-        synchronized (mSurfaceHolder) {
-            canvas = mSurfaceHolder.lockCanvas();
+        synchronized (this) {
+            SurfaceHolder surfaceHolder = getHolder();
+            if (isDetached || surfaceHolder == null || bitmap == null) {
+                return;
+            }
+            Canvas canvas = surfaceHolder.lockCanvas();
             if (canvas != null) {
                 try {
                     canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
@@ -389,7 +393,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
                     e.printStackTrace();
                 } finally {
                     if (canvas != null) {
-                        mSurfaceHolder.unlockCanvasAndPost(canvas);
+                        surfaceHolder.unlockCanvasAndPost(canvas);
                     }
                     bitmap.recycle();
                 }
@@ -402,7 +406,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
         post(new Runnable() {
             @Override
             public void run() {
-                if (animationListener != null) {
+                if (animationListener != null && !isDetached) {
                     animationListener.onAnimStart();
                 }
             }
@@ -413,7 +417,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
         post(new Runnable() {
             @Override
             public void run() {
-                if (animationListener != null) {
+                if (animationListener != null && !isDetached) {
                     animationListener.onAnimEnd();
                 }
             }
@@ -424,7 +428,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
         post(new Runnable() {
             @Override
             public void run() {
-                if (animationListener != null) {
+                if (animationListener != null && !isDetached) {
                     animationListener.onAnimRepeat();
                 }
             }
