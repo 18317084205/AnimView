@@ -15,15 +15,12 @@ import android.view.SurfaceView;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Runnable {
 
-    private static final ThreadPoolExecutor executors = new ThreadPoolExecutor(1, 1,
-            0L, TimeUnit.MILLISECONDS,
-            new LinkedBlockingQueue<Runnable>());
+    private ExecutorService executors = Executors.newSingleThreadExecutor();
 
     private String assetsFolder = "";
     private ArrayList<String> strings = new ArrayList<>();
