@@ -156,6 +156,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
             return;
         }
         strings.clear();
+        resIds.clear();
         index = 0;
         executors.execute(new Runnable() {
             @Override
@@ -175,6 +176,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
             return;
         }
         resIds.clear();
+        strings.clear();
         this.assetsFolder = assetsFolder;
         index = 0;
         executors.execute(new Runnable() {
