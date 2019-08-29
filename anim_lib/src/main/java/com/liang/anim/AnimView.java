@@ -8,6 +8,7 @@ import android.graphics.*;
 import android.support.annotation.ArrayRes;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.TypedValue;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
@@ -23,6 +24,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     private static final ThreadPoolExecutor executors= new ThreadPoolExecutor(1, 1,
             0L, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<Runnable>());
+
     private String assetsFolder = "";
     private ArrayList<String> strings = new ArrayList<>();
     private ArrayList<Integer> resIds = new ArrayList<>();
@@ -34,7 +36,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     private boolean isInitialized = false;
     private long duration;
     private boolean isLoop;
-    private Rect srcRect;
+    private Rect srcRect = new Rect();
     private Rect destRect;
     private Paint paint = new Paint();
     private int index = 0;
@@ -368,7 +370,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawRes(int resId) {
-        drawBitmap(BitmapFactory.decodeResource(getResources(), resId));
+        drawBitmap(getBitmap(resId));
     }
 
     private void drawAssets(String name) {
@@ -395,7 +397,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
                 try {
                     canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
                     if (!bitmap.isRecycled()) {
-                        srcRect = new Rect(0, 0, bitmap.getWidth(), bitmap.getHeight());
+                        srcRect.set(0, 0, bitmap.getWidth(), bitmap.getHeight());
                         canvas.drawBitmap(bitmap, srcRect, destRect, paint);
                     }
                 } catch (Exception e) {
@@ -409,7 +411,6 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
             }
         }
     }
-
 
     private void postAnimationStart() {
         post(new Runnable() {
@@ -450,6 +451,15 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
         if (visibility != VISIBLE) {
             stop();
         }
+    }
+
+    private Bitmap getBitmap(int resId){
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        TypedValue value=new TypedValue();
+        getResources().openRawResource(resId, value);
+        options.inTargetDensity = value.density;
+        options.inScaled = false;
+        return BitmapFactory.decodeResource(getResources(), resId, options);
     }
 
     public interface AnimationListener {

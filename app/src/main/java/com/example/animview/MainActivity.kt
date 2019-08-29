@@ -1,5 +1,6 @@
 package com.example.animview
 
+import android.graphics.PixelFormat
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
@@ -38,28 +39,14 @@ class MainActivity : AppCompatActivity() {
 
 
         show.setOnClickListener {
-//            anim.visibility = View.VISIBLE
             anim.setAnimResource(R.array.refresh)
+//            anim.setZOrderMediaOverlay(true)
+//            anim.holder.setFormat(PixelFormat.TRANSLUCENT)
         }
 
         gone.setOnClickListener {
-//            anim.visibility = View.GONE
             anim.setAnimAssets("refresh")
         }
-
-
-        seekBarAp.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                anim.alpha = progress / 100f
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {
-            }
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-            }
-
-        })
 
     }
 }
