@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Runnable {
 
-    private static final ThreadPoolExecutor executors= new ThreadPoolExecutor(1, 1,
+    private static final ThreadPoolExecutor executors = new ThreadPoolExecutor(1, 1,
             0L, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<Runnable>());
 
@@ -326,7 +326,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-            } while (isStart && index < resIds.size());
+            } while (!isDestroyed && isStart && index < resIds.size());
 
             refreshIndex(resIds.size());
 
@@ -351,7 +351,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-            } while (isStart && index < strings.size());
+            } while (!isDestroyed && isStart && index < strings.size());
 
             refreshIndex(strings.size());
 
@@ -453,9 +453,9 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
     }
 
-    private Bitmap getBitmap(int resId){
+    private Bitmap getBitmap(int resId) {
         BitmapFactory.Options options = new BitmapFactory.Options();
-        TypedValue value=new TypedValue();
+        TypedValue value = new TypedValue();
         getResources().openRawResource(resId, value);
         options.inTargetDensity = value.density;
         options.inScaled = false;
