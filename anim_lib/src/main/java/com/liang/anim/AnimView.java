@@ -14,12 +14,15 @@ import android.view.SurfaceView;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Runnable {
 
-    private ExecutorService executors = Executors.newSingleThreadExecutor();
+    private static final ThreadPoolExecutor executors= new ThreadPoolExecutor(1, 1,
+            0L, TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue<Runnable>());
     private String assetsFolder = "";
     private ArrayList<String> strings = new ArrayList<>();
     private ArrayList<Integer> resIds = new ArrayList<>();
@@ -36,7 +39,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     private Paint paint = new Paint();
     private int index = 0;
 
-    private boolean isDetached = false;
+    private boolean isDestroyed = true;
 
     private AssetManager assetsManager;
 
@@ -77,13 +80,15 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         stop();
-        isDetached = true;
         isLoop = false;
         executors.shutdown();
         strings.clear();
         resIds.clear();
     }
 
+    public boolean isDestroyed() {
+        return isDestroyed;
+    }
 
     public long getDuration() {
         return duration;
@@ -147,7 +152,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     @SuppressLint("Recycle")
     public void setAnimResource(@ArrayRes final int arrayRes) {
-        if (arrayRes == 0 || isDetached) {
+        if (arrayRes == 0) {
             return;
         }
         strings.clear();
@@ -166,7 +171,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     public void setAnimAssets(final String assetsFolder) {
-        if (TextUtils.isEmpty(assetsFolder) || isDetached) {
+        if (TextUtils.isEmpty(assetsFolder)) {
             return;
         }
         resIds.clear();
@@ -183,9 +188,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
                 }
             }
         });
-
     }
-
 
     private void checkStart() {
         if (isAutoStart || isStart) {
@@ -195,7 +198,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     public void start() {
 
-        if (isDetached || isRunning || !isInitialized) {
+        if (isDestroyed || isRunning || !isInitialized) {
             return;
         }
 
@@ -226,10 +229,9 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
         start();
     }
 
-
     public void setProgress(float progress) {
 
-        if (isRunning || isDetached) {
+        if (isRunning) {
             return;
         }
 
@@ -254,14 +256,13 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-
+        isDestroyed = false;
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
         destRect = new Rect(0, 0, width, height);
         isInitialized = true;
-
         drawFame(index);
 
         resume();
@@ -270,6 +271,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
+        isDestroyed = true;
         pause();
     }
 
@@ -287,7 +289,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     public void drawFame(final int index) {
 
-        if (isDetached) {
+        if (isDestroyed) {
             return;
         }
 
@@ -377,8 +379,13 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private void drawBitmap(Bitmap bitmap) {
         synchronized (this) {
+
+            if (isDestroyed) {
+                return;
+            }
+
             SurfaceHolder surfaceHolder = getHolder();
-            if (isDetached || surfaceHolder == null || bitmap == null) {
+            if (surfaceHolder == null || bitmap == null) {
                 return;
             }
             Canvas canvas = surfaceHolder.lockCanvas();
@@ -406,7 +413,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
         post(new Runnable() {
             @Override
             public void run() {
-                if (animationListener != null && !isDetached) {
+                if (animationListener != null) {
                     animationListener.onAnimStart();
                 }
             }
@@ -417,7 +424,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
         post(new Runnable() {
             @Override
             public void run() {
-                if (animationListener != null && !isDetached) {
+                if (animationListener != null) {
                     animationListener.onAnimEnd();
                 }
             }
@@ -428,7 +435,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
         post(new Runnable() {
             @Override
             public void run() {
-                if (animationListener != null && !isDetached) {
+                if (animationListener != null) {
                     animationListener.onAnimRepeat();
                 }
             }
