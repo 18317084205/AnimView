@@ -105,7 +105,7 @@ public class SequenceFrameView extends SurfaceView implements SurfaceHolder.Call
             @Override
             public void run() {
                 try {
-                    String[] paths = getContext().getAssets().list(assetsFolderPath);
+                    String[] paths = getAssetManager().list(assetsFolderPath);
                     if (paths == null) {
                         Log.w(TAG, "initAnimAssets: paths is null.");
                         return;
@@ -120,6 +120,13 @@ public class SequenceFrameView extends SurfaceView implements SurfaceHolder.Call
                 }
             }
         });
+    }
+
+    private AssetManager getAssetManager() {
+        if (mAssetsManager == null) {
+            mAssetsManager = getContext().getAssets();
+        }
+        return mAssetsManager;
     }
 
     /**
@@ -357,7 +364,7 @@ public class SequenceFrameView extends SurfaceView implements SurfaceHolder.Call
     private Bitmap getBitmap(String assetsPath) {
         Bitmap bitmap = null;
         try {
-            bitmap = BitmapFactory.decodeStream(mAssetsManager.open(assetsPath));
+            bitmap = BitmapFactory.decodeStream(getAssetManager().open(assetsPath));
         } catch (IOException e) {
             Log.e(TAG, "getBitmap: failed", e);
         }
