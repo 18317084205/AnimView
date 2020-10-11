@@ -4,7 +4,6 @@
         <attr name="animAssets" format="string" />
         <attr name="animResource" format="integer" />
         <attr name="loop" format="boolean" />
-        <attr name="autoStart" format="boolean" />
         <attr name="duration" format="integer" />
     </declare-styleable>
 </resources>

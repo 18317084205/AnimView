@@ -18,6 +18,10 @@ import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * 请使用{@link SequenceFrameView}
+ */
+@Deprecated
 public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Runnable {
 
     private ExecutorService executors = Executors.newSingleThreadExecutor();
@@ -59,7 +63,7 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
                 defStyleAttr, 0);
         isLoop = typedArray.getBoolean(R.styleable.SequenceFrameView_loop, false);
         duration = typedArray.getInt(R.styleable.SequenceFrameView_duration, 100);
-        isAutoStart = typedArray.getBoolean(R.styleable.SequenceFrameView_autoStart, false);
+//        isAutoStart = typedArray.getBoolean(R.styleable.SequenceFrameView_autoStart, false);
         setAnimAssets(typedArray.getString(R.styleable.SequenceFrameView_animAssets));
         setAnimResource(typedArray.getResourceId(R.styleable.SequenceFrameView_animResource, 0));
         typedArray.recycle();

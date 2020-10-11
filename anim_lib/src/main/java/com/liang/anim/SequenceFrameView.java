@@ -11,6 +11,7 @@ import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.graphics.drawable.Animatable;
+import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
@@ -42,6 +43,7 @@ public class SequenceFrameView extends SurfaceView implements SurfaceHolder.Call
     private int mIndex = 0;
     private AssetManager mAssetsManager;
     private AnimationListener mAnimationListener;
+    private Drawable mBackgroundDrawable;
 
     public SequenceFrameView(Context context) {
         this(context, null);
@@ -81,9 +83,11 @@ public class SequenceFrameView extends SurfaceView implements SurfaceHolder.Call
 
     @Override
     protected void onDetachedFromWindow() {
-        stop();
-        mAssetsPath.clear();
-        mArrayResIds.clear();
+        synchronized (this) {
+            stop();
+            mAssetsPath.clear();
+            mArrayResIds.clear();
+        }
         super.onDetachedFromWindow();
     }
 
@@ -105,15 +109,20 @@ public class SequenceFrameView extends SurfaceView implements SurfaceHolder.Call
             @Override
             public void run() {
                 try {
-                    String[] paths = getAssetManager().list(assetsFolderPath);
-                    if (paths == null) {
-                        Log.w(TAG, "initAnimAssets: paths is null.");
-                        return;
-                    }
-                    mAssetsPath.clear();
-                    mArrayResIds.clear();
-                    for (int index = 0; index < paths.length; index++) {
-                        mAssetsPath.put(index, assetsFolderPath + "/" + paths[index]);
+                    synchronized (SequenceFrameView.this) {
+                        String[] paths = getAssetManager().list(assetsFolderPath);
+                        if (paths == null) {
+                            Log.w(TAG, "initAnimAssets: paths is null.");
+                            return;
+                        }
+                        mAssetsPath.clear();
+                        mArrayResIds.clear();
+                        for (int index = 0; index < paths.length; index++) {
+                            mAssetsPath.put(index, assetsFolderPath + "/" + paths[index]);
+                        }
+                        if (mIsInitialized) {
+                            drawFrame(mIndex);
+                        }
                     }
                 } catch (IOException e) {
                     Log.e(TAG, "initAnimAssets: failed", e);
@@ -147,37 +156,90 @@ public class SequenceFrameView extends SurfaceView implements SurfaceHolder.Call
         doBackground(new Runnable() {
             @Override
             public void run() {
-                mAssetsPath.clear();
-                mArrayResIds.clear();
-                TypedArray typedArray = getResources().obtainTypedArray(arrayRes);
-                for (int index = 0; index < typedArray.length(); index++) {
-                    mArrayResIds.put(index, typedArray.getResourceId(index, 0));
+                synchronized (SequenceFrameView.this) {
+                    mAssetsPath.clear();
+                    mArrayResIds.clear();
+                    TypedArray typedArray = getResources().obtainTypedArray(arrayRes);
+                    for (int index = 0; index < typedArray.length(); index++) {
+                        mArrayResIds.put(index, typedArray.getResourceId(index, 0));
+                    }
+                    typedArray.recycle();
+                    if (mIsInitialized) {
+                        drawFrame(mIndex);
+                    }
                 }
-                typedArray.recycle();
             }
         });
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
+        Log.d(TAG, "surfaceCreated");
+        synchronized (this) {
+            drawRect.set(0, 0, getMeasuredWidth(), getMeasuredHeight());
+            drawBackground(holder);
+        }
+    }
+
+    private void drawBackground(SurfaceHolder holder) {
+        if (mBackgroundDrawable != null && holder != null) {
+            Log.d(TAG, "drawBackground");
+            Canvas canvas = holder.lockCanvas();
+            if (canvas != null) {
+                try {
+                    mBackgroundDrawable.setBounds(drawRect);
+                    mBackgroundDrawable.draw(canvas);
+                } catch (Exception e) {
+                    Log.e(TAG, "drawBackground: failed", e);
+                } finally {
+                    holder.unlockCanvasAndPost(canvas);
+                }
+            }
+        }
+    }
+
+    @Override
+    public void setBackgroundDrawable(Drawable background) {
+        synchronized (this) {
+            mBackgroundDrawable = background;
+            if (mIsInitialized) {
+                drawFrame(mIndex);
+            } else {
+                drawBackground(getHolder());
+            }
+        }
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+        Log.d(TAG, "surfaceChanged");
         synchronized (this) {
             drawRect.set(0, 0, width, height);
-        }
-        startHandlerThread();
-        mIsInitialized = true;
-        if (mIsRunning) {
-            startDrawFrame();
+            mBackgroundDrawable.setBounds(drawRect);
+            mIsInitialized = true;
+            startHandlerThread();
+            if (mIsRunning) {
+                startDrawFrame();
+            } else {
+                if (mHandler != null) {
+                    mHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            drawFrame(mIndex);
+                        }
+                    });
+                }
+            }
         }
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-        mIsInitialized = false;
-        stopHandlerThread();
+        Log.d(TAG, "surfaceDestroyed");
+        synchronized (this) {
+            mIsInitialized = false;
+            stopHandlerThread();
+        }
     }
 
     @Override
@@ -186,7 +248,9 @@ public class SequenceFrameView extends SurfaceView implements SurfaceHolder.Call
             Log.w(TAG, "run: failed, This thread is died");
             return;
         }
-        doDrawing();
+        synchronized (this) {
+            doDrawing();
+        }
     }
 
     @Override
@@ -195,8 +259,10 @@ public class SequenceFrameView extends SurfaceView implements SurfaceHolder.Call
             return;
         }
         mIsRunning = true;
-        if (mIsInitialized) {
-            startDrawFrame();
+        synchronized (this) {
+            if (mIsInitialized) {
+                startDrawFrame();
+            }
         }
     }
 
@@ -204,7 +270,9 @@ public class SequenceFrameView extends SurfaceView implements SurfaceHolder.Call
      * 重新启动动画，动画从头开始播放
      */
     public void reStart() {
-        mIndex = 0;
+        synchronized (this) {
+            mIndex = 0;
+        }
         if (mAnimationListener != null) {
             mAnimationListener.onAnimRepeat();
         }
@@ -237,17 +305,21 @@ public class SequenceFrameView extends SurfaceView implements SurfaceHolder.Call
     }
 
     private void refreshIndex() {
-        boolean isFinish = mIndex >= mAssetsPath.size() && mIndex >= mArrayResIds.size();
-        if (isFinish) {
-            mIndex = 0;
+        synchronized (this) {
+            boolean isFinish = mIndex >= mAssetsPath.size() && mIndex >= mArrayResIds.size();
+            if (isFinish) {
+                mIndex = 0;
+            }
+            mIndex = Math.max(0, mIndex - 1);
         }
-        mIndex = Math.max(0, mIndex - 1);
     }
 
     /**
-     * 设置动画进度
+     * 按整体进度绘制动画
+     *
+     * @param progress 动画进度 0.0 - 1.0
      */
-    public void setProgress(float progress) {
+    public void drawProgress(float progress) {
         if (mIsRunning) {
             return;
         }
@@ -258,12 +330,30 @@ public class SequenceFrameView extends SurfaceView implements SurfaceHolder.Call
         if (progress > 1) {
             offset = 1.0f;
         }
-        if (mArrayResIds.size() > 0) {
-            mIndex = Math.round((mArrayResIds.size() - 1) * offset);
-        } else if (mAssetsPath.size() > 0) {
-            mIndex = Math.round((mAssetsPath.size() - 1) * offset);
+        synchronized (this) {
+            if (mArrayResIds.size() > 0) {
+                mIndex = Math.round((mArrayResIds.size() - 1) * offset);
+            } else if (mAssetsPath.size() > 0) {
+                mIndex = Math.round((mAssetsPath.size() - 1) * offset);
+            }
+            if (mHandler != null) {
+                mHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        drawFrame(mIndex);
+                    }
+                });
+            }
         }
-        drawBitmap(mArrayResIds.size() > 0 ? getBitmap(mArrayResIds.get(mIndex, 0)) : getBitmap(mAssetsPath.get(mIndex)));
+    }
+
+    /**
+     * 绘制动画某一帧
+     *
+     * @param index 帧下标
+     */
+    private void drawFrame(int index) {
+        drawBitmap(mArrayResIds.size() > 0 ? getBitmap(mArrayResIds.get(index, 0)) : getBitmap(mAssetsPath.get(index)));
     }
 
     @Override
@@ -331,7 +421,7 @@ public class SequenceFrameView extends SurfaceView implements SurfaceHolder.Call
             return;
         }
         mHandler.postDelayed(this, mDuration);
-        drawBitmap(mArrayResIds.size() > 0 ? getBitmap(mArrayResIds.get(mIndex, 0)) : getBitmap(mAssetsPath.get(mIndex)));
+        drawFrame(mIndex);
         mIndex++;
     }
 
@@ -348,6 +438,7 @@ public class SequenceFrameView extends SurfaceView implements SurfaceHolder.Call
             if (canvas != null) {
                 try {
                     canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+                    mBackgroundDrawable.draw(canvas);
                     if (!bitmap.isRecycled()) {
                         canvas.drawBitmap(bitmap, null, drawRect, null);
                     }

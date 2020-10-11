@@ -1,9 +1,7 @@
 package com.example.animview
 
-import android.graphics.PixelFormat
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
-import android.view.View
 import android.widget.SeekBar
 import kotlinx.android.synthetic.main.activity_main.*
 
@@ -26,7 +24,7 @@ class MainActivity : AppCompatActivity() {
 
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                anim.setProgress(progress / 100f)
+                anim.drawProgress(progress / 100f)
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {
