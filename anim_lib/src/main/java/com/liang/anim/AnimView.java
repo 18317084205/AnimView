@@ -55,13 +55,13 @@ public class AnimView extends SurfaceView implements SurfaceHolder.Callback, Run
     public AnimView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init();
-        TypedArray typedArray = context.obtainStyledAttributes(attrs, R.styleable.AnimSurfaceView,
+        TypedArray typedArray = context.obtainStyledAttributes(attrs, R.styleable.SequenceFrameView,
                 defStyleAttr, 0);
-        isLoop = typedArray.getBoolean(R.styleable.AnimSurfaceView_loop, false);
-        duration = typedArray.getInt(R.styleable.AnimSurfaceView_duration, 100);
-        isAutoStart = typedArray.getBoolean(R.styleable.AnimSurfaceView_autoStart, false);
-        setAnimAssets(typedArray.getString(R.styleable.AnimSurfaceView_animAssets));
-        setAnimResource(typedArray.getResourceId(R.styleable.AnimSurfaceView_animResource, 0));
+        isLoop = typedArray.getBoolean(R.styleable.SequenceFrameView_loop, false);
+        duration = typedArray.getInt(R.styleable.SequenceFrameView_duration, 100);
+        isAutoStart = typedArray.getBoolean(R.styleable.SequenceFrameView_autoStart, false);
+        setAnimAssets(typedArray.getString(R.styleable.SequenceFrameView_animAssets));
+        setAnimResource(typedArray.getResourceId(R.styleable.SequenceFrameView_animResource, 0));
         typedArray.recycle();
     }
 

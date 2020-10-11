@@ -19,7 +19,7 @@
     <!--    app:animResource="@array/refresh"-->
     <!--    app:animAssets="refresh"-->
 
-    <com.liang.anim.AnimView
+    <com.liang.anim.SequenceFrameView
             android:id="@+id/anim"
             android:layout_width="50dp"
             android:layout_height="50dp"
